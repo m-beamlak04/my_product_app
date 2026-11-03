@@ -25,6 +25,12 @@ class ProductPage extends StatefulWidget {
 class _ProductPageState extends State<ProductPage> {
   final _products = FirebaseFirestore.instance.collection('products');
   late final _productStream = _products.snapshots();
+  String _searchQuery = '';
+  String _minPriceInput = '';
+  String _maxPriceInput = '';
+  final _searchController = TextEditingController();
+  final _minPriceController = TextEditingController();
+  final _maxPriceController = TextEditingController();
 
   Future<void> _createOrUpdate([
     QueryDocumentSnapshot<Map<String, dynamic>>? document,
@@ -56,73 +62,203 @@ class _ProductPageState extends State<ProductPage> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Autumn Product Manager')),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _productStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text(
-                'Products could not load. Check connection and permissions.',
-              ),
-            );
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final documents = snapshot.data!.docs;
-          if (documents.isEmpty) {
-            return const Center(
-              child: Text('No products yet. Add one to begin.'),
-            );
-          }
-          return ListView.builder(
-            itemCount: documents.length,
-            itemBuilder: (context, index) {
-              final document = documents[index];
-              final data = document.data();
-              final name = data['name'];
-              final price = data['price'];
-              if (name is! String ||
-                  name.trim().isEmpty ||
-                  price is! num ||
-                  !price.isFinite ||
-                  price < 0) {
-                return ListTile(
-                  title: Text(
-                    'Invalid product ${document.id}: check name/price types.',
-                  ),
-                );
-              }
-              return Card(
-                child: ListTile(
-                  title: Text(name),
-                  subtitle: Text(
-                    '${price.toStringAsFixed(2)}\nID: ${document.id}',
-                  ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Edit product',
-                        icon: const Icon(Icons.edit),
-                        onPressed: () => _createOrUpdate(document),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: const InputDecoration(
+                          labelText: 'Search products',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                        },
                       ),
-                      IconButton(
-                        tooltip: 'Delete product',
-                        icon: const Icon(Icons.delete),
-                        onPressed: () => _deleteProduct(document.id),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        _minPriceController.clear();
+                        _maxPriceController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                          _minPriceInput = '';
+                          _maxPriceInput = '';
+                        });
+                      },
+                      child: const Text('Reset'),
+                    ),
+                  ],
                 ),
-              );
-            },
-          );
-        },
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _minPriceController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Min price',
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _minPriceInput = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _maxPriceController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Max price',
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _maxPriceInput = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _productStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text(
+                      'Products could not load. Check connection and permissions.',
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final documents = snapshot.data!.docs;
+                final minPrice = double.tryParse(_minPriceInput.trim());
+                final maxPrice = double.tryParse(_maxPriceInput.trim());
+                final invalidMin =
+                    _minPriceInput.trim().isNotEmpty &&
+                    (minPrice == null || !minPrice.isFinite || minPrice < 0);
+                final invalidMax =
+                    _maxPriceInput.trim().isNotEmpty &&
+                    (maxPrice == null || !maxPrice.isFinite || maxPrice < 0);
+                final invalidRange =
+                    !invalidMin &&
+                    !invalidMax &&
+                    minPrice != null &&
+                    maxPrice != null &&
+                    minPrice > maxPrice;
+                final filteredDocuments = documents.where((document) {
+                  final data = document.data();
+                  final name = data['name'];
+                  final price = data['price'];
+                  if (name is! String || price is! num) return false;
+                  final matchesSearch = name.trim().toLowerCase().contains(
+                    _searchQuery.trim().toLowerCase(),
+                  );
+                  final matchesMin = minPrice == null || price >= minPrice;
+                  final matchesMax = maxPrice == null || price <= maxPrice;
+                  return matchesSearch && matchesMin && matchesMax;
+                }).toList();
+                if (invalidMin || invalidMax || invalidRange) {
+                  return const Center(
+                    child: Text(
+                      'Enter valid non-negative prices, with Min price '
+                      'less than or equal to Max price.',
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+                if (documents.isEmpty) {
+                  return const Center(
+                    child: Text('No products yet. Add one to begin.'),
+                  );
+                }
+                if (filteredDocuments.isEmpty) {
+                  return const Center(
+                    child: Text('No products match your filters.'),
+                  );
+                }
+                return ListView.builder(
+                  itemCount: filteredDocuments.length,
+                  itemBuilder: (context, index) {
+                    final document = filteredDocuments[index];
+                    final data = document.data();
+                    final name = data['name'];
+                    final price = data['price'];
+                    if (name is! String ||
+                        name.trim().isEmpty ||
+                        price is! num ||
+                        !price.isFinite ||
+                        price < 0) {
+                      return ListTile(
+                        title: Text(
+                          'Invalid product ${document.id}: check name/price types.',
+                        ),
+                      );
+                    }
+                    return Card(
+                      child: ListTile(
+                        title: Text(name),
+                        subtitle: Text(
+                          '${price.toStringAsFixed(2)}\nID: ${document.id}',
+                        ),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Edit product',
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _createOrUpdate(document),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete product',
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteProduct(document.id),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Create product',
