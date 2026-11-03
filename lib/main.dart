@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(
+    const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Autumn Product Manager',
+      home: ProductPage(),
+    ),
   );
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    title: 'Autumn Product Manager',
-    home: ProductPage(),
-  ));
 }
 
 class ProductPage extends StatefulWidget {
@@ -25,26 +26,33 @@ class _ProductPageState extends State<ProductPage> {
   final _products = FirebaseFirestore.instance.collection('products');
   late final _productStream = _products.snapshots();
 
-  Future<void> _createOrUpdate(
-      [QueryDocumentSnapshot<Map<String, dynamic>>? document]
-      ) async {
+  Future<void> _createOrUpdate([
+    QueryDocumentSnapshot<Map<String, dynamic>>? document,
+  ]) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      builder: (context) => ProductEditor(
-        products: _products,
-        document: document,
-      ),
+      builder: (context) =>
+          ProductEditor(products: _products, document: document),
     );
   }
 
   Future<void> _deleteProduct(String id) async {
-    // TODO: Await deletion by ID; report failures, not false success.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Delete is not implemented yet.')),
-    );
+    try {
+      await _products.doc(id).delete();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Product deleted successfully. ')),
+      );
+    } on FirebaseException catch (error) {
+      debugPrint('Product deletion failed: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Product deletion unsuccessful. ')),
+      );
+    }
   }
 
   @override
@@ -55,16 +63,20 @@ class _ProductPageState extends State<ProductPage> {
         stream: _productStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text(
-              'Products could not load. Check connection and permissions.',
-            ));
+            return const Center(
+              child: Text(
+                'Products could not load. Check connection and permissions.',
+              ),
+            );
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           final documents = snapshot.data!.docs;
           if (documents.isEmpty) {
-            return const Center(child: Text('No products yet. Add one to begin.'));
+            return const Center(
+              child: Text('No products yet. Add one to begin.'),
+            );
           }
           return ListView.builder(
             itemCount: documents.length,
@@ -73,16 +85,23 @@ class _ProductPageState extends State<ProductPage> {
               final data = document.data();
               final name = data['name'];
               final price = data['price'];
-              if (name is! String || name.trim().isEmpty || price is! num ||
-                  !price.isFinite || price < 0) {
-                return ListTile(title: Text(
-                  'Invalid product ${document.id}: check name/price types.',
-                ));
+              if (name is! String ||
+                  name.trim().isEmpty ||
+                  price is! num ||
+                  !price.isFinite ||
+                  price < 0) {
+                return ListTile(
+                  title: Text(
+                    'Invalid product ${document.id}: check name/price types.',
+                  ),
+                );
               }
               return Card(
                 child: ListTile(
                   title: Text(name),
-                  subtitle: Text('${price.toStringAsFixed(2)}\nID: ${document.id}'),
+                  subtitle: Text(
+                    '${price.toStringAsFixed(2)}\nID: ${document.id}',
+                  ),
                   isThreeLine: true,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -115,11 +134,7 @@ class _ProductPageState extends State<ProductPage> {
 }
 
 class ProductEditor extends StatefulWidget {
-  const ProductEditor({
-    super.key,
-    required this.products,
-    this.document,
-  });
+  const ProductEditor({super.key, required this.products, this.document});
 
   final CollectionReference<Map<String, dynamic>> products;
   final QueryDocumentSnapshot<Map<String, dynamic>>? document;
@@ -148,7 +163,10 @@ class _ProductEditorState extends State<ProductEditor> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _saving = true; _saveError = null; });
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
     final data = <String, Object>{
       'name': _name.text.trim(),
       'price': double.parse(_price.text.trim()),
@@ -167,7 +185,8 @@ class _ProductEditorState extends State<ProductEditor> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _saveError = 'Save failed (${error.code}). '
+        _saveError =
+            'Save failed (${error.code}). '
             'Check your connection and permissions.';
       });
     }
@@ -179,7 +198,10 @@ class _ProductEditorState extends State<ProductEditor> {
       canPop: !_saving,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20,
+          20,
+          20,
+          20,
+          MediaQuery.of(context).viewInsets.bottom + 20,
         ),
         child: SingleChildScrollView(
           child: Form(
@@ -188,13 +210,16 @@ class _ProductEditorState extends State<ProductEditor> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(widget.document == null ? 'Create product' : 'Edit product'),
+                Text(
+                  widget.document == null ? 'Create product' : 'Edit product',
+                ),
                 TextFormField(
                   controller: _name,
                   enabled: !_saving,
                   decoration: const InputDecoration(labelText: 'Name'),
                   validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Enter a product name' : null,
+                      ? 'Enter a product name'
+                      : null,
                 ),
                 TextFormField(
                   controller: _price,
@@ -206,17 +231,21 @@ class _ProductEditorState extends State<ProductEditor> {
                   validator: (value) {
                     final amount = double.tryParse(value?.trim() ?? '');
                     return amount == null || !amount.isFinite || amount < 0
-                        ? 'Enter a finite price of zero or more' : null;
+                        ? 'Enter a finite price of zero or more'
+                        : null;
                   },
                 ),
                 if (_saveError != null)
-                  Text(_saveError!, style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  )),
+                  Text(
+                    _saveError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                 if (_saving)
                   const Text(
                     'Awaiting server acknowledgement. If offline, reconnect. '
-                        'This editor stays open until the write succeeds or fails.',
+                    'This editor stays open until the write succeeds or fails.',
                   ),
                 const SizedBox(height: 16),
                 ElevatedButton(
