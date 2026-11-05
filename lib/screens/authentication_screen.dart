@@ -42,11 +42,18 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = error.code == 'weak-password'
-            ? 'Please choose a stronger password.'
-            : error.code == 'email-already-in-use'
-            ? 'This email is already registered.'
-            : 'Authentication failed. Please check your details.';
+        if (error.code == 'weak-password') {
+          _errorMessage = 'Please choose a stronger password.';
+        } else if (error.code == 'email-already-in-use') {
+          _errorMessage = 'This email is already registered.';
+        } else if (error.code == 'wrong-password' ||
+            error.code == 'invalid-credential' ||
+            error.code == 'user-not-found' ||
+            error.code == 'invalid-email') {
+          _errorMessage = 'Incorrect email or password. Please try again.';
+        } else {
+          _errorMessage = 'Authentication failed. Please try again.';
+        }
       });
     } catch (error) {
       if (!mounted) return;
