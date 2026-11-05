@@ -1,17 +1,30 @@
-# my_product_app
+# In-Class Activity 13 — Firebase Authentication
 
-A new Flutter project.
+## Project Overview
+This is a Flutter application that uses Firebase Authentication to allow users to create an account, sign in, manage their password, and sign out. The app also uses an AuthGate to display the correct screen depending on whether the user is signed in.
 
-## Getting Started
+## Features
+- Register an account using email and password.
+- Sign in and sign out.
+- Display the signed-in user's email on their profile.
+- Change passwords by verifying the current password first.
+- Display readable error messages and validate user input.
+- Keep users signed in after restarting the app.
 
-This project is a starting point for a Flutter application.
+## Firebase Setup
+The app uses Firebase Authentication with the Email/Password sign-in method enabled.
 
-A few resources to get you started if this is your first Flutter project:
+To run the app with your own Firebase project, configure Firebase for Flutter using FlutterFire and enable Email/Password authentication in the Firebase Console.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## How to Run
+1. Clone the repository.
+2. Open the project in IntelliJ, VSCode, or another Flutter-supported IDE.
+3. Run `flutter pub get`.
+4. Make sure Firebase is configured for the project.
+5. Run `flutter run` on an Android emulator or device.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Testing
+I tested account registration, successful and unsuccessful sign-in, password validation, changing passwords with correct and incorrect current passwords, signing out, and session persistence after restarting the app.
+
+## Previous Activity
+The previous Firestore Product Manager implementation from In-Class Activity 12 is preserved in the `InClass-12` branch.
