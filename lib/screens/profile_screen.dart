@@ -12,7 +12,21 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Profile')),
-      body: Center(child: Text('Signed in as: ${user?.email ?? 'Unknown'}')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Signed in as: ${user?.email ?? 'Unknown'}'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                await authService.signOut();
+              },
+              child: const Text('Sign Out'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
