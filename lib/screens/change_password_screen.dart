@@ -46,7 +46,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = e.message ?? 'Could not change password';
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          _errorMessage = 'Your current password is incorrect.';
+        } else if (e.code == 'weak-password') {
+          _errorMessage = 'Please choose a stronger password.';
+        } else if (e.code == 'requires-recent-login') {
+          _errorMessage = 'Please sign in again and retry.';
+        } else {
+          _errorMessage = 'Could not change password. Please try again.';
+        }
       });
     } catch (e) {
       if (!mounted) return;
