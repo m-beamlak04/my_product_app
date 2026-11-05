@@ -28,5 +28,20 @@ class AuthService {
     await user.updatePassword(newPassword);
   }
 
+  Future<void> reauthenticate(String currentPassword) async {
+    final user = _auth.currentUser;
+
+    if (user == null || user.email == null) {
+      throw StateError('A signed-in email user is required.');
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword,
+    );
+
+    await user.reauthenticateWithCredential(credential);
+  }
+
   User? get currentUser => _auth.currentUser;
 }
